@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<style>
+    #data_show {
+        position: relative;
+        top: 60px;
+        left: 60%;
+        width: 25%;
+        height: 690px;
+        overflow: auto;
+    }
+
+    #pieChart {
+        position: absolute;
+        top: 50%;
+    }
+
+    #block {
+        position: absolute;
+        top: 70%;
+        left: 30%;
+    }
+
+    #clock {
+        position: absolute;
+        font-size: 100px;
+        width: min-content;
+        top: 6%;
+    }
+
+    #updateT {
+        position: absolute;
+        font-size: 25px;
+        top: 20%;
+    }
+    #exp_word{
+        position: absolute;
+        top: 40%;
+        font-size: 120%;
+    }
+
+    #data_block{
+        position: absolute;
+        top: 90%;
+    }
+
+    #head{
+        position: absolute;
+        margin-top: 0;
+    }
+</style>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>台鐵列車動態</title>
+</head>
+
+<body>
+    <h1 id="head">台鐵列車動態</h1>
+    <div id="clock"></div>
+    <div id="updateT">資料時間{{updatetime}}<button onclick="reloadPage()">資料更新</button></div>
+
+    <p id="data_show"></p>
+
+    <span id="exp_word">誤點比例統計圖表:</span>
+
+    <canvas id="pieChart" width="300%" height="300%"></canvas>
+
+    <div id="block">
+        <span style="background-color: blue; width: 10px;">&nbsp;</span><span>準點</span><br>
+        <span style="background-color: yellow; width: 10px;">&nbsp;</span><span>誤點時間 <10 </span><br>
+                <span style="background-color: red; width: 10px;">&nbsp;</span><span>誤點時間 >10 </span>
+    </div>
+
+    <span id="data_block">111</span>
+</body>
+
+<script>
+
+    function updateTime() {
+        var now = new Date();
+        var hours = now.getHours();
+        var minutes = ('0' + now.getMinutes()).slice(-2);
+        var seconds = ('0' + now.getSeconds()).slice(-2);
+        document.getElementById('clock').textContent = hours + ':' + minutes + ':' + seconds;
+    }
+
+    setInterval(updateTime, 1000);
+
+    var data_Array = JSON.parse('{{ data_Array | tojson | safe }}')
+
+    var count = JSON.parse('{{ count | tojson | safe }}');
+
+    let Delay_data = [];
+    let i = 0;
+
+    space = String.fromCharCode(0x3000)
+
+    show_data = '';
+
+    for (var j = 0; j < count; j++) {
+        switch (data_Array[j][0].toString().length) {
+            case 1:
+                data_Array[j][0] = '&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp' + data_Array[j][0].toString();
+                break;
+            case 2:
+                data_Array[j][0] = '&nbsp&nbsp&nbsp&nbsp&nbsp' + data_Array[j][0].toString();
+                break;
+            case 3:
+                data_Array[j][0] = '&nbsp&nbsp&nbsp' + data_Array[j][0].toString();
+                break;
+            case 4:
+                data_Array[j][0] = '&nbsp' + data_Array[j][0].toString();
+                break;
+        }
+    }
+
+    for (var j = 0; j < count; j++) {
+        switch (data_Array[j][1].toString().length) {
+            case 2:
+                data_Array[j][1] = data_Array[j][1].toString() + space + space + space;
+                break;
+            case 3:
+                data_Array[j][1] = data_Array[j][1].toString() + space + space;
+                break;
+            case 4:
+                data_Array[j][1] = data_Array[j][1].toString() + space;
+                break;
+        }
+    }
+
+    for (var j = 0; j < count; j++) {
+        show_data += '車次:&nbsp;' + data_Array[j][0];
+        show_data += space + '動態位置:&nbsp;' + data_Array[j][1];
+        show_data += space + '誤點時間:&nbsp;' + data_Array[j][2] + '<br>';;
+        Delay_data.push(data_Array[j][2]);
+    }
+
+    document.getElementById('data_show').innerHTML = show_data;
+
+    var on_time = 0;
+    var min_ = 0;
+    var max_ = 0;
+    for (var j = 0; j < count; j++) {
+        if (Delay_data[j] == 0) on_time++;
+        else if (Delay_data[j] > 0 && Delay_data[j] < 10) min_++;
+        else if (Delay_data[j] > 10) max_++;
+    }
+
+    document.getElementById('data_block').innerHTML = '準點:&nbsp;' + on_time + '&nbsp; 誤點 (< 10 分鐘):&nbsp;' + min_ + '&nbsp; 誤點 (> 10 分鐘):&nbsp;' + max_;
+
+    var canvas = document.getElementById('pieChart');
+    var ctx1 = canvas.getContext('2d');
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+    var radius = Math.min(x, y) - 10;
+    var startAngle = 0;
+    var endAngle = Math.PI * 2 * (max_ / count); 
+
+    ctx1.beginPath();
+    ctx1.moveTo(x, y);
+    ctx1.arc(x, y, radius, startAngle, endAngle);
+    ctx1.fillStyle = 'red'; 
+    ctx1.fill();
+
+    var ctx2 = canvas.getContext('2d');
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+    var radius = Math.min(x, y) - 10;
+    var startAngle = endAngle;
+    var endAngle = Math.PI * 2 * ((max_ + min_) / count); 
+
+    ctx2.beginPath();
+    ctx2.moveTo(x, y);
+    ctx2.arc(x, y, radius, startAngle, endAngle);
+    ctx2.fillStyle = 'yellow'; 
+    ctx2.fill();
+
+    var ctx3 = canvas.getContext('2d');
+    var x = canvas.width / 2;
+    var y = canvas.height / 2;
+    var radius = Math.min(x, y) - 10;
+    var startAngle = endAngle;
+    var endAngle = Math.PI * 2 * 1; 
+
+    ctx3.beginPath();
+    ctx3.moveTo(x, y);
+    ctx3.arc(x, y, radius, startAngle, endAngle);
+    ctx3.fillStyle = 'blue'; 
+    ctx3.fill();
+</script>
+
+<script>
+    function reloadPage() {
+            window.location.href = '/restart';
+        }
+</script>
+
+</html>
